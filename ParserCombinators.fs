@@ -4,29 +4,31 @@ module ParserCombinators
     type ParserLabel = string
     type ParserError = string
 
-    type Result<'a> =
-        | Success of 'a
-        | Failure of (ParserLabel * ParserError)
+    type ParserResult<'a> = Result<'a, (ParserLabel * ParserError)>
 
     type Parser<'T> = {
-        parseFn: (string -> Result<'T * string>)
+        parseFn: (string -> ParserResult<'T * string>)
         label: ParserLabel
     }
 
     let labelOf parser =
         parser.label
 
-    let resultAsString = function
-        | Success (value, _) -> sprintf "%A" value
-        | Failure (label, err) -> sprintf "Error parsing %s\n%s" label err
-
     let applyParser parser input =
         parser.parseFn input
+
+    let resultAsString = function
+        | Ok (value, _) -> sprintf "%A" value
+        | Error (label, err) -> sprintf "Error parsing %s\n%s" label err
+
+    let dropRemaining = function
+        | Ok (value, _) -> Ok value
+        | Error err -> Error err    
 
     let createForwardedToRefParser<'a> =
         let label = "unknown"
         let unfixedParser =
-            let parseFn _ : Result<'a * string>  = failwith "unfixed parser"
+            let parseFn _ : ParserResult<'a * string>  = failwith "unfixed parser"
             { parseFn = parseFn; label = label }
 
         let parserRef = ref unfixedParser
@@ -42,21 +44,21 @@ module ParserCombinators
         let label = "unknown"
         let parseFn input =
             if String.IsNullOrEmpty input then
-                Failure (label, "No more input")
+                Error (label, "No more input")
             else
                 let currentChar = input.[0]
                 if predicate currentChar then
-                    Success (currentChar, input.[1..])
+                    Ok (currentChar, input.[1..])
                 else
-                    Failure (label, sprintf "Unexpected %c" currentChar)
+                    Error (label, sprintf "Unexpected %c" currentChar)
 
         { parseFn = parseFn; label = label }
 
     let setLabel parser newLabel =
         let parseFn input =
             match (applyParser parser input) with
-            | Success result -> Success result
-            | Failure (_, err) -> Failure (newLabel, err)
+            | Ok result      -> Ok result
+            | Error (_, err) -> Error (newLabel, err)
 
         { parseFn = parseFn; label = newLabel }
 
@@ -68,14 +70,14 @@ module ParserCombinators
             let firstResult = applyParser first input
 
             match firstResult with
-            | Failure err -> Failure err
-            | Success (firstValue, firstRemaining) ->
+            | Error err -> Error err
+            | Ok (firstValue, firstRemaining) ->
                 let secondResult = applyParser second firstRemaining
 
                 match secondResult with
-                | Failure err -> Failure err
-                | Success (secondValue, secondRemaining) ->
-                    Success((firstValue, secondValue), secondRemaining)
+                | Error err -> Error err
+                | Ok (secondValue, secondRemaining) ->
+                    Ok ((firstValue, secondValue), secondRemaining)
 
         { parseFn = parseFn; label = label }
 
@@ -85,8 +87,8 @@ module ParserCombinators
         let label = sprintf "%s or else %s" (labelOf first) (labelOf second)
         let parseFn input =
             match applyParser first input with
-            | Success result -> Success result
-            | Failure _      -> applyParser second input
+            | Ok result -> Ok result
+            | Error _   -> applyParser second input
 
         { parseFn = parseFn; label = label }
 
@@ -99,8 +101,8 @@ module ParserCombinators
         let label = "unknown"
         let parseFn input =
             match applyParser parser input with
-            | Failure (oldLabel, err)     -> Failure (oldLabel, err)
-            | Success (result, remaining) -> Success ((f result), remaining)
+            | Error (oldLabel, err)     -> Error (oldLabel, err)
+            | Ok (result, remaining)    -> Ok ((f result), remaining)
 
         { parseFn = parseFn; label = label }        
 
@@ -108,7 +110,7 @@ module ParserCombinators
     let (|>>) parser f = mapP f parser
 
     let returnP value =
-        let parseFn input = Success (value, input)
+        let parseFn input = Ok (value, input)
 
         { parseFn = parseFn; label = sprintf "%A" value }
 
@@ -130,14 +132,14 @@ module ParserCombinators
     let parseZeroOrMore parser input =
         let rec inner (x, str) =
             match (applyParser parser str) with
-            | Failure _                          -> (List.rev x, str)
-            | Success (result, strAfterResult)   -> inner (result::x, strAfterResult)
+            | Error _                       -> (List.rev x, str)
+            | Ok (result, strAfterResult)   -> inner (result::x, strAfterResult)
 
         inner ([], input)
 
     let many parser =
         let label = sprintf "any of %s" (labelOf parser)
-        let parseFn input = Success <| parseZeroOrMore parser input
+        let parseFn input = Ok <| parseZeroOrMore parser input
 
         { parseFn = parseFn; label = label }
 
@@ -145,11 +147,11 @@ module ParserCombinators
         let label = sprintf "at least one of %s" (labelOf parser)
         let parseFn input =
             match (applyParser parser input) with
-            | Failure (_, err) -> Failure (label, err)
-            | Success (firstResult, remainingAfterFirst) ->
+            | Error (_, err) -> Error (label, err)
+            | Ok (firstResult, remainingAfterFirst) ->
                 let (zeroOrMoreResult, remaining) = parseZeroOrMore parser remainingAfterFirst
 
-                Success (firstResult::zeroOrMoreResult, remaining)
+                Ok (firstResult::zeroOrMoreResult, remaining)
 
         { parseFn = parseFn; label = label }        
 

@@ -6,138 +6,136 @@ module Parser =
     open ParserCombinators
     open ParserCombinators.Char
 
-    let existentialQuantifier =
-        parseChar '∃'
-        |>> fun _ -> Quantifier.Existential
-        <?> "existential quantifier"
+    module private Elements =
+        let existentialQuantifier =
+            parseChar '∃'
+            |>> fun _ -> Quantifier.Existential
+            <?> "existential quantifier"
 
-    let universalQuantifier =
-        parseChar '∀'
-        |>> fun _ -> Quantifier.Universal
-        <?> "universal quantifier"
+        let universalQuantifier =
+            parseChar '∀'
+            |>> fun _ -> Quantifier.Universal
+            <?> "universal quantifier"
 
-    let quantifier =
-        existentialQuantifier <|> universalQuantifier    
+        let quantifier =
+            existentialQuantifier <|> universalQuantifier    
 
-    let disjunctionOperator =
-        parseChar '∨'
-        |>> fun _ -> BinaryOperator.Disjunction
-        <?> "disjunction operator"
+        let disjunctionOperator =
+            parseChar '∨'
+            |>> fun _ -> BinaryOperator.Disjunction
+            <?> "disjunction operator"
 
-    let conjunctionOperator =
-        parseChar '∧'
-        |>> fun _ -> BinaryOperator.Conjunction
-        <?> "conjunction operator"
+        let conjunctionOperator =
+            parseChar '∧'
+            |>> fun _ -> BinaryOperator.Conjunction
+            <?> "conjunction operator"
 
-    let implicationOperator =
-        parseChar '→'
-        |>> fun _ -> BinaryOperator.Implication
-        <?> "implication operator"
+        let implicationOperator =
+            parseChar '→'
+            |>> fun _ -> BinaryOperator.Implication
+            <?> "implication operator"
 
-    let binaryOperator =
-        choice [disjunctionOperator; conjunctionOperator; implicationOperator]    
+        let binaryOperator =
+            choice [disjunctionOperator; conjunctionOperator; implicationOperator]    
 
-    let negationOperator =
-        Char.parseChar '¬'
-        |>> fun _ -> UnaryOperator.Negation
-        <?> "negation operator"
+        let negationOperator =
+            Char.parseChar '¬'
+            |>> fun _ -> UnaryOperator.Negation
+            <?> "negation operator"
 
-    let unaryOperator = negationOperator    
+        let unaryOperator = negationOperator    
 
-    let (term, termRef) = createForwardedToRefParser<Term>    
+        let (term, termRef) = createForwardedToRefParser<Term>    
 
-    let parseVariable =
-        Char.anyOf ['x'; 'y'; 'z'; 'v'; 'w']
-        .>>. many Char.digit
-        |>> fun (ch, digits) -> String(List.toArray (ch::digits))
+        let variableName =
+            Char.anyOf ['x'; 'y'; 'z'; 'v'; 'w']
+            .>>. many Char.digit
+            |>> fun (ch, digits) -> String(List.toArray (ch::digits))
 
-    let variable =
-        parseVariable
-        |>> Variable
-        <?> "variable"
+        let variable =
+            variableName
+            |>> Variable
+            <?> "variable"
 
-    let constant =
-        Char.anyOf ['a'; 'b'; 'c'; 'd']
-        .>>. many Char.digit
-        |>> fun (ch, digits) -> String(List.toArray (ch::digits))
-        |>> Constant
-        <?> "constant"
+        let constant =
+            Char.anyOf ['a'; 'b'; 'c'; 'd']
+            .>>. many Char.digit
+            |>> fun (ch, digits) -> String(List.toArray (ch::digits))
+            |>> Constant
+            <?> "constant"
 
-    let functionName =
-        Char.anyOf ['f'; 'g'; 'h'] 
-        .>>. many Char.digit
-        |>> fun (ch, digits) -> String(List.toArray (ch::digits))
+        let functionName =
+            Char.anyOf ['f'; 'g'; 'h'] 
+            .>>. many Char.digit
+            |>> fun (ch, digits) -> String(List.toArray (ch::digits))
 
-    let betweenParens parser =
-        between (parseChar '(') parser (parseChar ')')
+        let betweenParens parser =
+            between (parseChar '(') parser (parseChar ')')
 
-    let func =
-        let arguments = 
-            sepBy term (parseChar ',')
+        let func =
+            let arguments = 
+                sepBy term (parseChar ',')
 
-        functionName
-        .>>. betweenParens arguments
-        |>> Function
-        <?> "function"
+            functionName
+            .>>. betweenParens arguments
+            |>> Function
+            <?> "function"
 
-    termRef := choice [
-            variable;
-            constant;
-            func
-        ]
+        termRef := choice [
+                variable;
+                constant;
+                func
+            ]
 
-    let (formula, formulaRef) = createForwardedToRefParser<Formula>
+        let (formula, formulaRef) = createForwardedToRefParser<Formula>
 
-    let quantifiedFormula =
-        quantifier
-        .>>. parseVariable
-        .>>. formula
-        |>> fun ((q, v), f) -> QuantifiedFormula (q, v, f)
-        <?> "quantifier formula"
+        let quantifiedFormula =
+            quantifier
+            .>>. variableName
+            .>>. formula
+            |>> fun ((q, v), f) -> QuantifiedFormula (q, v, f)
+            <?> "quantifier formula"
 
-    let binaryFormula =
-        betweenParens (formula .>>. binaryOperator .>>. formula)
-        |>> fun ((lhs, op), rhs) -> BinaryFormula (lhs, op, rhs)
-        <?> "binary formula"
+        let binaryFormula =
+            betweenParens (formula .>>. binaryOperator .>>. formula)
+            |>> fun ((lhs, op), rhs) -> BinaryFormula (lhs, op, rhs)
+            <?> "binary formula"
 
-    let unaryFormula =
-        unaryOperator .>>. formula
-        |>> UnaryFormula
-        <?> "unary formula"    
+        let unaryFormula =
+            unaryOperator .>>. formula
+            |>> UnaryFormula
+            <?> "unary formula"    
 
-    let predicateName =
-        anyOf ['P'; 'Q'; 'R'; 'S']
-        .>>. many digit
-        |>> fun (ch, digits) -> String(List.toArray (ch::digits))
+        let predicateName =
+            anyOf ['P'; 'Q'; 'R'; 'S']
+            .>>. many digit
+            |>> fun (ch, digits) -> String(List.toArray (ch::digits))
 
-    let predicate =
-        let arguments = 
-            sepBy term (parseChar ',')
+        let predicate =
+            let arguments = 
+                sepBy term (parseChar ',')
 
-        predicateName
-        .>>. betweenParens arguments
-        |>> Predicate
-        <?> "predicate"   
+            predicateName
+            .>>. betweenParens arguments
+            |>> Predicate
+            <?> "predicate"   
 
-    formulaRef := choice [
-            quantifiedFormula;
-            unaryFormula;
-            binaryFormula;
-            predicate
-        ]
+        formulaRef := choice [
+                quantifiedFormula;
+                unaryFormula;
+                binaryFormula;
+                predicate
+            ]
 
     let parseFormula input =
-        match (applyParser formula input) with
-        | Failure err -> Failure err
-        | Success (formula, _) -> Success formula
-
+        applyParser Elements.formula input
+        |> dropRemaining
+        
     let parseTerm input =
-        match (applyParser term input) with
-        | Failure err -> Failure err
-        | Success (term, _) -> Success term
+        applyParser Elements.term input
+        |> dropRemaining
 
-    let pVariable input =
-        match (applyParser parseVariable input) with
-        | Failure err -> Failure err
-        | Success (v, _) -> Success v
+    let parseVariable input =
+        applyParser Elements.variableName input
+        |> dropRemaining
     

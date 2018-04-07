@@ -3,7 +3,6 @@ open System
 
 open FirstOrderLogic.Substitution
 open FirstOrderLogic.Parser
-open ParserCombinators
 
 let exhaustInput() =
     Seq.initInfinite (fun _ -> Console.ReadLine())
@@ -17,24 +16,24 @@ let processInput() =
     let toSubPair (str: String) =
         let [|v; t; |] = str.Split [| ' ' |]
 
-        match (pVariable v) with
-        | Failure err -> Failure err
-        | Success v ->
+        match (parseVariable v) with
+        | Error err -> Error err
+        | Ok v ->
             match (parseTerm t) with
-            | Failure err -> Failure err
-            | Success term -> Success (v, term)
+            | Error err -> Error err
+            | Ok term -> Ok (v, term)
 
     let rec hp = function
-        | [] -> Success []
-        | (Success res)::xs ->
+        | [] -> Ok []
+        | (Ok res)::xs ->
             match (hp xs) with
-            | Failure err -> Failure err
-            | Success lst -> Success (res::lst)
-        | (Failure err)::_ -> Failure err            
+            | Error err -> Error err
+            | Ok lst -> Ok (res::lst)
+        | (Error err)::_ -> Error err            
 
     match formula with
-    | Failure err -> Failure err
-    | Success f ->
+    | Error err -> Error err
+    | Ok f ->
         let pairs =
             exhaustInput()
             |> Seq.map toSubPair
@@ -42,8 +41,8 @@ let processInput() =
             |> hp
 
         match pairs with
-        | Failure err -> Failure err
-        | Success p -> Success (f, Map.ofList(p))        
+        | Error err -> Error err
+        | Ok p -> Ok (f, Map.ofList(p))        
 
 [<EntryPoint>]
 let main argv =
@@ -51,10 +50,10 @@ let main argv =
     Console.OutputEncoding <- System.Text.Encoding.UTF8
 
     match processInput() with
-    | Success (f, pairs) -> 
+    | Ok (f, pairs) -> 
         match (performSubstitution f pairs) with
         | Ok f ->  printfn "%s" (f.ToString())
         | Error err -> printfn "%A" err
-    | Failure err -> printfn "%A" err
+    | Error err -> printfn "%A" err
 
     0

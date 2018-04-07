@@ -19,8 +19,6 @@ module Substitution =
         | Function (_, args) ->
             args |> List.exists (fun x -> isForbidden forbiddenSet x)
 
-
-
     let rec termSub term subMap forbidden =
         let rec hp = function
         | [] -> Ok []
@@ -36,7 +34,7 @@ module Substitution =
             | None -> 
                 Ok <| Variable v
             | Some nv when isForbidden forbidden nv ->
-                Error <| sprintf "%s cannot be substituted by term %s because it contains bound variable(s)." v (nv.ToString())
+                Error <| sprintf "%s cannot be substituted by term \"%s\" because it contains bound variable(s)." v (nv.ToString())
             | Some nv when isForbidden forbidden (Variable v) ->
                 Error <| sprintf "%s is a bound variable that cannot be substituted by %s" v (nv.ToString())
             | Some nv ->
