@@ -8,52 +8,42 @@ let exhaustInput() =
     Seq.initInfinite (fun _ -> Console.ReadLine())
     |> Seq.takeWhile ((<>) null)
 
-let processInput() =
-    let k = Console.ReadLine()
-    printfn "%s" k
-    let formula = parseFormula <| k
+let flattenResults (lst: List<Result<'a, 'b>>) =
+        let foldr acc elem =
+            elem |> Result.bind (fun inner -> acc |> Result.map (fun lst -> inner::lst))
 
+        lst |> List.fold foldr (Ok [])
+
+let processInput() =
     let toSubPair (str: String) =
         let [|v; t; |] = str.Split [| ' ' |]
 
-        match (parseVariable v) with
-        | Error err -> Error err
-        | Ok v ->
-            match (parseTerm t) with
-            | Error err -> Error err
-            | Ok term -> Ok (v, term)
+        parseVariable v
+        |> Result.bind (fun v -> (parseTerm t) |> Result.map (fun t -> (v, t)))
 
-    let rec hp = function
-        | [] -> Ok []
-        | (Ok res)::xs ->
-            match (hp xs) with
-            | Error err -> Error err
-            | Ok lst -> Ok (res::lst)
-        | (Error err)::_ -> Error err            
-
-    match formula with
-    | Error err -> Error err
-    | Ok f ->
-        let pairs =
-            exhaustInput()
+    let extractPairs() =
+        exhaustInput()
             |> Seq.map toSubPair
             |> Seq.toList
-            |> hp
+            |> flattenResults
 
-        match pairs with
-        | Error err -> Error err
-        | Ok p -> Ok (f, Map.ofList(p))        
+    let formula = parseFormula <| Console.ReadLine()
+
+    formula
+        |> Result.bind 
+            (fun f -> extractPairs() |> Result.map (fun pairs -> (f, pairs))) 
+        |> Result.map (fun (f, pairs) -> (f, Map.ofList(pairs)))
 
 [<EntryPoint>]
 let main argv =
     Console.InputEncoding <- System.Text.Encoding.UTF8
     Console.OutputEncoding <- System.Text.Encoding.UTF8
 
-    match processInput() with
-    | Ok (f, pairs) -> 
-        match (performSubstitution f pairs) with
-        | Ok f ->  printfn "%s" (f.ToString())
-        | Error err -> printfn "%A" err
-    | Error err -> printfn "%A" err
+    processInput()
+    |> Result.mapError (fun (label, err) -> sprintf "%s\n%s" label err)
+    |> Result.bind (fun (f, pairs) -> performSubstitution f pairs)
+    |> Result.map (fun f -> printfn "%s" (f.ToString()))
+    |> Result.mapError (fun err -> printfn "%A" err)
+    |> ignore
 
     0

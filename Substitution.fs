@@ -6,6 +6,12 @@ module Substitution =
 
     type SubstitutionPair = string * Term
 
+    let flattenResults (lst: List<Result<'a, 'b>>) =
+        let foldr acc elem =
+            elem |> Result.bind (fun inner -> acc |> Result.map (fun lst -> inner::lst))
+
+        lst |> List.fold foldr (Ok [])
+
     let substituteOf (subMap: Map<string, Term>) x =
         if subMap.ContainsKey x then
             Some subMap.[x]
@@ -20,14 +26,6 @@ module Substitution =
             args |> List.exists (fun x -> isForbidden forbiddenSet x)
 
     let rec termSub term subMap forbidden =
-        let rec hp = function
-        | [] -> Ok []
-        | (Ok res)::xs ->
-            match (hp xs) with
-            | Error err -> Error err
-            | Ok lst -> Ok (res::lst)
-        | (Error err)::_ -> Error err
-
         match term with
         | Variable v -> 
             match (substituteOf subMap v) with
@@ -41,54 +39,28 @@ module Substitution =
                 Ok nv 
         | Constant c -> Ok <| Constant c
         | Function (name, args) ->
-            let argResult =
-                args 
-                |> List.map (fun arg -> termSub arg subMap forbidden)
-                |> hp
-
-            match argResult with
-            | Error err -> Error err
-            | Ok res -> Ok <| Function (name, res)
-    
-    let bind switch twoTrack =
-        match twoTrack with
-        | Ok res -> switch res
-        | Error err -> Error err
-
-    let (>>=) twoTrack switch =
-        bind switch twoTrack
+            args 
+            |> List.map (fun arg -> termSub arg subMap forbidden)
+            |> flattenResults
+            |> Result.map (fun args -> Function (name, args))
 
     let rec subHelper formula subMap forbidden =
-        let rec hp = function
-        | [] -> Ok []
-        | (Ok res)::xs ->
-            match (hp xs) with
-            | Error err -> Error err
-            | Ok lst -> Ok (res::lst)
-        | (Error err)::_ -> Error err
-
         match formula with
         | UnaryFormula (_, formula) -> subHelper formula subMap forbidden
         | Predicate (name, args) ->
-            let argResult =
-                args 
-                |> List.map (fun arg -> termSub arg subMap forbidden)
-                |> hp
-
-            match argResult with
-            | Error err -> Error err
-            | Ok res -> Ok <| Predicate (name, res)
+            args 
+            |> List.map (fun arg -> termSub arg subMap forbidden)
+            |> flattenResults
+            |> Result.map (fun args -> Predicate(name, args))
         | BinaryFormula (lhs, op, rhs) ->
-            match (subHelper lhs subMap forbidden) with
-            | Error err -> Error err
-            | Ok reslhs ->
-                match (subHelper rhs subMap forbidden) with
-                | Error err -> Error err
-                | Ok resrhs -> Ok <| BinaryFormula (reslhs, op, resrhs)
+            subHelper lhs subMap forbidden
+            |> Result.bind 
+                (fun k -> (subHelper rhs subMap forbidden) 
+                          |> Result.bind (fun f -> Ok (k, f)))
+            |> Result.bind (fun (k, f) -> Ok <| BinaryFormula (k, op, f))
         | QuantifiedFormula (q, v, f) ->
-            match (subHelper f subMap (forbidden.Add v)) with
-            | Error err -> Error err
-            | Ok res -> Ok <| QuantifiedFormula (q, v, res)
+            subHelper f subMap (forbidden.Add v)
+            |> Result.map (fun res -> QuantifiedFormula (q, v, res))
 
     let performSubstitution formula subMap =
         subHelper formula subMap (new Set<string>([]))
