@@ -1,7 +1,7 @@
 namespace FirstOrderLogic
 
 module Model =
-    type Quantor =
+    type Quantifier =
         | Existential
         | Universal
 
@@ -14,12 +14,12 @@ module Model =
         | Negation        
 
     type Term =
-        | Function of (string * List<Term>)
+        | Function of (string * Term list)
         | Constant of string
         | Variable of string
 
     type Formula =
-        | QuantifiedFormula of (Quantor * string * Formula)
+        | QuantifiedFormula of (Quantifier * string * Formula)
         | BinaryFormula of (Formula * BinaryOperator * Formula)
         | UnaryFormula of (UnaryOperator * Formula)
-        | Predicate of (string * List<Term>)
+        | Predicate of (string * Term list)

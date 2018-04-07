@@ -23,6 +23,21 @@ module ParserCombinators
     let applyParser parser input =
         parser.parseFn input
 
+    let createForwardedToRefParser<'a> =
+        let label = "unknown"
+        let unfixedParser =
+            let parseFn _ : Result<'a * string>  = failwith "unfixed parser"
+            { parseFn = parseFn; label = label }
+
+        let parserRef = ref unfixedParser
+
+        let parseFn input =
+            applyParser !parserRef input
+
+        let wrapperParser = { parseFn = parseFn; label = label }
+
+        (wrapperParser, parserRef)
+
     let satisfy predicate =
         let label = "unknown"
         let parseFn input =
@@ -35,7 +50,7 @@ module ParserCombinators
                 else
                     Failure (label, sprintf "Unexpected %c" currentChar)
 
-        { parseFn = parseFn; label = label }                        
+        { parseFn = parseFn; label = label }
 
     let setLabel parser newLabel =
         let parseFn input =
@@ -162,7 +177,6 @@ module ParserCombinators
     let sepBy parser separator =
         sepBy1 parser separator <|> returnP []
 
-
     module Char =
         let parseChar (charToMatch: char) =
             satisfy (fun ch -> ch = charToMatch)
@@ -184,3 +198,7 @@ module ParserCombinators
             |> List.map parseChar
             |> sequence
             |> mapP toString
+
+        let digit =
+            satisfy Char.IsDigit
+            <?> "digit"
