@@ -130,7 +130,7 @@ module ParserCombinators
     let parseZeroOrMore parser input =
         let rec inner (x, str) =
             match (applyParser parser str) with
-            | Failure _                          -> (x, str)
+            | Failure _                          -> (List.rev x, str)
             | Success (result, strAfterResult)   -> inner (result::x, strAfterResult)
 
         inner ([], input)
