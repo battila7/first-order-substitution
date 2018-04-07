@@ -62,7 +62,7 @@ module ParserCombinators
 
         { parseFn = parseFn; label = newLabel }
 
-    let (<?>) = setLabel    
+    let private (<?>) = setLabel    
 
     let andThen first second =
         let label = sprintf "%s and then %s" (labelOf first) (labelOf second)
@@ -81,7 +81,7 @@ module ParserCombinators
 
         { parseFn = parseFn; label = label }
 
-    let (.>>.) = andThen
+    let private (.>>.) = andThen
 
     let orElse first second =
         let label = sprintf "%s or else %s" (labelOf first) (labelOf second)
@@ -92,7 +92,7 @@ module ParserCombinators
 
         { parseFn = parseFn; label = label }
 
-    let (<|>) = orElse
+    let private (<|>) = orElse
 
     let choice parsers =
         List.reduce (<|>) parsers
@@ -106,8 +106,8 @@ module ParserCombinators
 
         { parseFn = parseFn; label = label }        
 
-    let (<!>) = mapP
-    let (|>>) parser f = mapP f parser
+    let private (<!>) = mapP
+    let private (|>>) parser f = mapP f parser
 
     let returnP value =
         let parseFn input = Ok (value, input)
@@ -118,7 +118,7 @@ module ParserCombinators
         fP .>>. xP    
         |> mapP (fun (f, x) -> f x)
 
-    let (<*>) = applyP
+    let private (<*>) = applyP
 
     let rec sequence parsers =
         let cons head tail = head::tail
@@ -129,7 +129,7 @@ module ParserCombinators
         | [] -> returnP []
         | head::tail -> consP head (sequence tail)
 
-    let parseZeroOrMore parser input =
+    let private parseZeroOrMore parser input =
         let rec inner (x, str) =
             match (applyParser parser str) with
             | Error _                       -> (List.rev x, str)
@@ -161,11 +161,20 @@ module ParserCombinators
 
         couldMatch <|> noMatch
 
-    let (.>>) p1 p2 =
+
+    let dropFst p1 p2 =
         p1 .>>. p2
         |> mapP fst
 
-    let (>>.) p1 p2 =
+    let dropSnd p1 p2 =
+        p1 .>>. p2
+        |> mapP snd    
+
+    let private (.>>) p1 p2 =
+        p1 .>>. p2
+        |> mapP fst
+
+    let private (>>.) p1 p2 =
         p1 .>>. p2
         |> mapP snd
 
@@ -178,6 +187,25 @@ module ParserCombinators
 
     let sepBy parser separator =
         sepBy1 parser separator <|> returnP []
+
+
+    module Operators =
+        let (<?>) = (<?>)
+
+        let (.>>.) = (.>>.)
+
+        let (<|>) = (<|>)
+
+        let (<!>) = (<!>)
+
+        let (|>>) = (|>>)
+
+        let (<*>) = (<*>)
+
+        let (.>>) = (.>>)
+
+        let (>>.) = (>>.)
+
 
     module Char =
         let parseChar (charToMatch: char) =

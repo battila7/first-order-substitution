@@ -5,6 +5,7 @@ module Parser =
     open FirstOrderLogic.Model
     open ParserCombinators
     open ParserCombinators.Char
+    open ParserCombinators.Operators
 
     module private Elements =
         let existentialQuantifier =
