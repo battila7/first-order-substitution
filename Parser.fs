@@ -135,4 +135,9 @@ module Parser =
         match (applyParser term input) with
         | Failure err -> Failure err
         | Success (term, _) -> Success term
+
+    let pVariable input =
+        match (applyParser parseVariable input) with
+        | Failure err -> Failure err
+        | Success (v, _) -> Success v
     
