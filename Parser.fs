@@ -91,12 +91,12 @@ module Parser =
     let quantifiedFormula =
         quantifier
         .>>. parseVariable
-        .>>. betweenParens formula
+        .>>. formula
         |>> fun ((q, v), f) -> QuantifiedFormula (q, v, f)
         <?> "quantifier formula"
 
     let binaryFormula =
-        formula .>>. binaryOperator .>>. formula
+        betweenParens (formula .>>. binaryOperator .>>. formula)
         |>> fun ((lhs, op), rhs) -> BinaryFormula (lhs, op, rhs)
         <?> "binary formula"
 
