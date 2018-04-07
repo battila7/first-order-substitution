@@ -33,12 +33,14 @@ module Substitution =
         match term with
         | Variable v -> 
             match (substituteOf subMap v) with
-            | None    -> Ok <| Variable v
+            | None -> 
+                Ok <| Variable v
+            | Some nv when isForbidden forbidden nv ->
+                Error <| sprintf "%s cannot be substituted by term %s because it contains bound variable(s)." v (nv.ToString())
+            | Some nv when isForbidden forbidden (Variable v) ->
+                Error <| sprintf "%s is a bound variable that cannot be substituted by %s" v (nv.ToString())
             | Some nv ->
-                if (isForbidden forbidden nv) || (isForbidden forbidden (Variable v)) then
-                    Error <| sprintf "%s is a bound variable that cannot be substituted by %A" v nv
-                else
-                    Ok <| nv
+                Ok nv 
         | Constant c -> Ok <| Constant c
         | Function (name, args) ->
             let argResult =
