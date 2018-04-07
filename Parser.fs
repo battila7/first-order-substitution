@@ -125,4 +125,14 @@ module Parser =
             binaryFormula;
             predicate
         ]
+
+    let parseFormula input =
+        match (applyParser formula input) with
+        | Failure err -> Failure err
+        | Success (formula, _) -> Success formula
+
+    let parseTerm input =
+        match (applyParser term input) with
+        | Failure err -> Failure err
+        | Success (term, _) -> Success term
     

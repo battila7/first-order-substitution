@@ -9,6 +9,7 @@
     <Compile Include="ParserCombinators.fs" />
     <Compile Include="Model.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="Substitution.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>
