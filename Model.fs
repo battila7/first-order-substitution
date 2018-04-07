@@ -33,13 +33,13 @@ module Model =
             match t with
             | Constant c -> c
             | Variable v -> v
-            | Function (f, args) ->
+            | Function (name, args) ->
                 let argStr = 
                     args 
                     |> List.map (fun arg -> arg.ToString())
                     |> String.concat " "
                 
-                sprintf "%s(%s)" f argStr            
+                sprintf "%s(%s)" name argStr            
                 
 
     type Formula =
@@ -49,17 +49,17 @@ module Model =
         | Predicate of (string * Term list)
         override f.ToString() =
             match f with
-            | QuantifiedFormula (q, v, f) -> 
-                sprintf "%s%s%s" (q.ToString()) v (f.ToString())
+            | QuantifiedFormula (quantifier, variable, formula) -> 
+                sprintf "%s%s%s" (quantifier.ToString()) variable (formula.ToString())
             | BinaryFormula (lhs, op, rhs) ->
                 sprintf "(%s%s%s)" (lhs.ToString()) (op.ToString()) (rhs.ToString())
-            | UnaryFormula (op, f) ->
-                sprintf "%s%s" (op.ToString()) (f.ToString())
-            | Predicate (p, args) ->
+            | UnaryFormula (op, formula) ->
+                sprintf "%s%s" (op.ToString()) (formula.ToString())
+            | Predicate (name, args) ->
                 let argStr = 
                     args 
                     |> List.map (fun arg -> arg.ToString())
                     |> String.concat " "
                 
-                sprintf "%s(%s)" p argStr                                 
+                sprintf "%s(%s)" name argStr                                 
     

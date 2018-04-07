@@ -1,66 +1,65 @@
 namespace FirstOrderLogic
 
 module Substitution =
-    open Model
     open Microsoft.FSharp.Collections
 
-    type SubstitutionPair = string * Term
+    open Model
+    open Utility
 
-    let flattenResults (lst: List<Result<'a, 'b>>) =
-        let foldr acc elem =
-            elem |> Result.bind (fun inner -> acc |> Result.map (fun lst -> inner::lst))
-
-        lst |> List.fold foldr (Ok [])
-
-    let substituteOf (subMap: Map<string, Term>) x =
+    let private substituteOf (subMap: Map<string, Term>) x =
         if subMap.ContainsKey x then
             Some subMap.[x]
         else
             None
 
-    let rec isForbidden (forbiddenSet: Set<string>) term =
+    let rec private isBound (bounds: Set<string>) term =
         match term with
-        | Variable v -> forbiddenSet.Contains v
-        | Constant c -> forbiddenSet.Contains c
+        | Variable v -> bounds.Contains v
+        | Constant _ -> false
         | Function (_, args) ->
-            args |> List.exists (fun x -> isForbidden forbiddenSet x)
+            args |> List.exists (fun t -> isBound bounds t)
 
-    let rec termSub term subMap forbidden =
+    let rec private substituteTerm term substitutions boundVars =
         match term with
         | Variable v -> 
-            match (substituteOf subMap v) with
+            match (substituteOf substitutions v) with
             | None -> 
                 Ok <| Variable v
-            | Some nv when isForbidden forbidden nv ->
-                Error <| sprintf "%s cannot be substituted by term \"%s\" because it contains bound variable(s)." v (nv.ToString())
-            | Some nv when isForbidden forbidden (Variable v) ->
-                Error <| sprintf "%s is a bound variable that cannot be substituted by %s" v (nv.ToString())
-            | Some nv ->
-                Ok nv 
+            | Some subTerm when isBound boundVars subTerm ->
+                Error <| sprintf "%s cannot be substituted by term \"%s\" because it contains bound variable(s)." v (subTerm.ToString())
+            | Some subTerm when isBound boundVars (Variable v) ->
+                Error <| sprintf "%s is a bound variable that cannot be substituted by %s" v (subTerm.ToString())
+            | Some subTerm ->
+                Ok subTerm
         | Constant c -> Ok <| Constant c
         | Function (name, args) ->
             args 
-            |> List.map (fun arg -> termSub arg subMap forbidden)
+            |> List.map (fun arg -> substituteTerm arg substitutions boundVars)
             |> flattenResults
             |> Result.map (fun args -> Function (name, args))
 
-    let rec subHelper formula subMap forbidden =
+    let rec private substituteFormula formula substitutions boundVars =
         match formula with
-        | UnaryFormula (_, formula) -> subHelper formula subMap forbidden
+        | UnaryFormula (op, formula) -> 
+            substituteFormula formula substitutions boundVars
+            |> Result.map (fun res -> UnaryFormula (op, res))
+
         | Predicate (name, args) ->
             args 
-            |> List.map (fun arg -> termSub arg subMap forbidden)
+            |> List.map (fun arg -> substituteTerm arg substitutions boundVars)
             |> flattenResults
             |> Result.map (fun args -> Predicate(name, args))
-        | BinaryFormula (lhs, op, rhs) ->
-            subHelper lhs subMap forbidden
-            |> Result.bind 
-                (fun k -> (subHelper rhs subMap forbidden) 
-                          |> Result.bind (fun f -> Ok (k, f)))
-            |> Result.bind (fun (k, f) -> Ok <| BinaryFormula (k, op, f))
-        | QuantifiedFormula (q, v, f) ->
-            subHelper f subMap (forbidden.Add v)
-            |> Result.map (fun res -> QuantifiedFormula (q, v, res))
 
-    let performSubstitution formula subMap =
-        subHelper formula subMap (new Set<string>([]))
+        | BinaryFormula (lhs, op, rhs) ->
+            substituteFormula lhs substitutions boundVars
+            |> Result.bind 
+                (fun left -> (substituteFormula rhs substitutions boundVars) 
+                             |> Result.bind (fun right -> Ok (left, right)))
+            |> Result.bind (fun (left, right) -> Ok <| BinaryFormula (left, op, right))
+
+        | QuantifiedFormula (quantifier, variable, formula) ->
+            substituteFormula formula substitutions (boundVars.Add variable)
+            |> Result.map (fun res -> QuantifiedFormula (quantifier, variable, res))
+
+    let performSubstitution formula substitutions =
+        substituteFormula formula substitutions (new Set<string>([]))
