@@ -11,23 +11,24 @@ let exhaustInput() =
 
 let processInput() =
     let toSubPair (str: String) =
-        let [|v; t |] = str.Split [| ' ' |]
-
-        parseVariable v
-        |> Result.bind (fun v -> (parseTerm t) |> Result.map (fun t -> (v, t)))
+        match str.Split [| ' ' |] with
+        | [| v; t |] -> parseVariable v
+                        |> Result.mapError(fun (label, _) -> (label, "Expected a variable, but received something else (see above)."))
+                        |> Result.bind (fun v -> (parseTerm t) |> Result.map (fun t -> (v, t)))
+        | _          -> Error (str, "^ Unexpected input: expected a variable and a term separated by a single space.")
 
     let extractPairs() =
         exhaustInput()
-            |> Seq.map toSubPair
-            |> Seq.toList
-            |> flattenResults
+        |> Seq.map toSubPair
+        |> Seq.toList
+        |> flattenResults
 
     let formula = parseFormula <| Console.ReadLine()
 
     formula
-        |> Result.bind 
-            (fun f -> extractPairs() |> Result.map (fun pairs -> (f, pairs))) 
-        |> Result.map (fun (f, pairs) -> (f, Map.ofList(pairs)))
+    |> Result.bind 
+        (fun f -> extractPairs() |> Result.map (fun pairs -> (f, pairs))) 
+    |> Result.map (fun (f, pairs) -> (f, Map.ofList(pairs)))
 
 [<EntryPoint>]
 let main _ =
@@ -38,7 +39,7 @@ let main _ =
     |> Result.mapError (fun (label, err) -> sprintf "%s\n%s" label err)
     |> Result.bind (fun (formula, pairs) -> performSubstitution formula pairs)
     |> Result.map (fun formula -> printfn "%s" (formula.ToString()))
-    |> Result.mapError (fun err -> printfn "%A" err)
+    |> Result.mapError Console.WriteLine
     |> ignore
 
     0
