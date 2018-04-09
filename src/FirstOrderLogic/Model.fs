@@ -1,6 +1,8 @@
 namespace FirstOrderLogic
 
+/// Az elsőrendű formulák (és termek) építőelemeit tartalmazó modul. Formulákkal végezhető műveleteket nem tartalmaz.
 module Model =
+    /// A lehetséges kvantorokat leíró discriminated union (https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/discriminated-unions).
     type Quantifier =
         | Existential
         | Universal
@@ -9,6 +11,7 @@ module Model =
             | Existential -> "∃"
             | Universal -> "∀"
 
+    /// A lehetséges bináris operátorokat leíró típus.
     type BinaryOperator =
         | Disjunction
         | Conjunction
@@ -19,13 +22,16 @@ module Model =
             | Conjunction -> "∧"
             | Implication -> "→"
 
+    /// A lehetséges unáris operátorokat leíró típus.
     type UnaryOperator =
         | Negation
         override op.ToString() =
             match op with
             | Negation -> "¬"
 
+    /// A termeket leíró típus.
     type Term =
+        /// Egy függvényszimbólum előfordulásához egy név és egy termekből álló lista tartozik.
         | Function of (string * Term list)
         | Constant of string
         | Variable of string
@@ -41,8 +47,9 @@ module Model =
                 
                 sprintf "%s(%s)" name argStr            
                 
-
+    /// A formulákat leíró típus.
     type Formula =
+        /// Egy kvantifikált formula egy kvantorból, egy kötött változónévből és egy formulából áll.
         | QuantifiedFormula of (Quantifier * string * Formula)
         | BinaryFormula of (Formula * BinaryOperator * Formula)
         | UnaryFormula of (UnaryOperator * Formula)
