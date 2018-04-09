@@ -2,6 +2,8 @@
 
 Simple program performing variable to term substitution in [first-order logic](https://en.wikipedia.org/wiki/First-order_logic) formulae.
 
+*For the commented hungarian version, see the [commented-hungarian branch](https://github.com/battila7/first-order-substitution/tree/commented-hungarian).*
+
 ## Build & Run
 
 Assuming you have the [.NET CLI](https://docs.microsoft.com/en-us/dotnet/core/tools/?tabs=netcore2x) installed, the program can be started by the following command:
